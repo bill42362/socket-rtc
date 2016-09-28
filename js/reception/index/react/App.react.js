@@ -7,8 +7,10 @@ class App extends React.Component {
     constructor(props) {
         super(props);
         this.staticStrings = { };
-        this.state = {
-        };
+        this.state = { };
+        if(window.CoreRtc) {
+            CoreRtc.connectIo();
+        }
     }
     render() {
         let state = this.state;
