@@ -10,6 +10,7 @@ const Stream = require('socket.io-stream');
 
 const App = function() {};
 App.prototype.server = new Hapi.Server();
+App.prototype.clients = [];
 App.prototype.listener = Http2.createServer({
     key: Fs.readFileSync('./ssl/localhost.key'),
     cert: Fs.readFileSync('./ssl/localhost.crt')
@@ -49,7 +50,39 @@ App.prototype.runSocketServer = function() {
 };
 App.prototype.onSocketConnection = function(socket) {
     this.socketServerDebug('Connection.', 'socket.id:', socket.id);
+    this.clients.push({socket: socket, outgoingAudioStream: undefined});
+    Stream(socket).on('audio', this.onAudioStreamGot.bind({self: this, socket: socket}));
+    socket.on('disconnect', this.onSocketDisonnect.bind({self: this, socket: socket}));
 }
+App.prototype.onSocketDisonnect = function(socket) {
+    this.self.socketServerDebug('Disconnect.', 'socket.id:', this.socket.id);
+    this.self.clients = this.self.clients.filter(client => {
+        return this.socket.id != client.socket.id;
+    });
+}
+App.prototype.onAudioStreamGot = function(audioStream, data) {
+    const self = this.self;
+    const socket = this.socket;
+    self.clients.forEach(function(client) {
+        if(socket.id != client.socket.id) {
+            if(!client.outgoingAudioStream) {
+                client.outgoingAudioStream = Stream.createStream();
+                Stream(socket).emit('audio', client.outgoingAudioStream);
+                self.socketServerDebug(
+                    'Create outgoingAudioStream.',
+                    'for socket.id:', client.socket.id
+                );
+            }
+            client.outgoingAudioStream.pipe(audioStream);
+            self.socketServerDebug(
+                'Pipe.',
+                'from socket.id:', socket.id, ', to socket.id:', client.socket.id
+            );
+        }
+    });
+    console.log('onAudioStreamGot() data:', data);
+}
+
 module.exports = App;
 
 const app = new App();

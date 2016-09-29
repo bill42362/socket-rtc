@@ -1,6 +1,7 @@
 import Core from './Core.js';
 import EventCenter from './EventCenter.js';
 import io from 'socket.io-client';
+import Stream from 'socket.io-stream';
 import Debug from 'debug';
 
 Debug.disable();
@@ -10,9 +11,12 @@ var socketErrorDebugger = Debug('socket:error');
 if(undefined === window.Core) { window.Core = function() {}; };
 Core.Rtc = function() {
     this.baseUrl = '';
+    this.clientId = Core.newUuid();
+    this.sendingAudioStream = Stream.createStream();
 	return this;
 }
 
+Core.Rtc.prototype.recevingAudioStreams = [];
 Core.Rtc.prototype.isIoConnected = function() { return this.io && this.io.connected; };
 Core.Rtc.prototype.closeIo = function() {
     if(this.isIoConnected()) { this.io.close(); }
@@ -38,6 +42,7 @@ Core.Rtc.prototype.connectIo = function() {
     };
     this.io = io('https://' + socketHost + ':' + socketPort, connectOption);
     this.io.addEventListener('connect', this.onConnectIoSuccess.bind(this));
+    this.io.addEventListener('audio', this.onAudioStreamGot.bind(this));
 
     window.addEventListener('beforeunload', this.closeIo.bind(this), false);
 
@@ -72,5 +77,12 @@ Core.Rtc.prototype.onConnectIoTimeout = function(e) {
 	Core.eventCenter.castEvent(this, 'connectiotimeout', e);
 	Core.eventCenter.castEvent(this, 'connectioerror', e);
 };
+
+Core.Rtc.prototype.sendAudioStream = function(audioStream) {
+    Stream(this.io).emit('audio', this.sendingAudioStream, {uuid: this.clientId});
+}
+Core.Rtc.prototype.onAudioStreamGot = function(audioStream, data) {
+    console.log('onAudioStreamGot() audioStream:', audioStream, ', data:', data);
+}
 
 module.exports = Core.Rtc;
