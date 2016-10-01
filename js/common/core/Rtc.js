@@ -1,7 +1,6 @@
 import Core from './Core.js';
 import EventCenter from './EventCenter.js';
 import io from 'socket.io-client';
-import Stream from 'socket.io-stream';
 import Debug from 'debug';
 
 Debug.disable();
@@ -12,11 +11,13 @@ if(undefined === window.Core) { window.Core = function() {}; };
 Core.Rtc = function() {
     this.baseUrl = '';
     this.clientId = Core.newUuid();
-    this.sendingAudioStream = Stream.createStream();
 	return this;
 }
 
-Core.Rtc.prototype.recevingAudioStreams = [];
+Core.Rtc.BUFFER_LENGTH = 1024;
+Core.Rtc.prototype.audioBufferData = new Array(Core.Rtc.BUFFER_LENGTH);
+Core.Rtc.prototype.audioContext = new AudioContext();
+Core.Rtc.prototype.audioBufferDataVisualize = document.getElementById('audio-buffer-data');
 Core.Rtc.prototype.isIoConnected = function() { return this.io && this.io.connected; };
 Core.Rtc.prototype.closeIo = function() {
     if(this.isIoConnected()) { this.io.close(); }
@@ -42,7 +43,7 @@ Core.Rtc.prototype.connectIo = function() {
     };
     this.io = io('https://' + socketHost + ':' + socketPort, connectOption);
     this.io.addEventListener('connect', this.onConnectIoSuccess.bind(this));
-    this.io.addEventListener('audio', this.onAudioStreamGot.bind(this));
+    this.io.addEventListener('audioBufferData', this.onAudioBufferDataGot.bind(this));
 
     window.addEventListener('beforeunload', this.closeIo.bind(this), false);
 
@@ -79,10 +80,28 @@ Core.Rtc.prototype.onConnectIoTimeout = function(e) {
 };
 
 Core.Rtc.prototype.sendAudioStream = function(audioStream) {
-    Stream(this.io).emit('audio', this.sendingAudioStream, {uuid: this.clientId});
+    let source = this.audioContext.createMediaStreamSource(audioStream);
+    let scriptNode = this.audioContext.createScriptProcessor(Core.Rtc.BUFFER_LENGTH, 1, 1);
+    scriptNode.onaudioprocess = this.onAudioProcess.bind(this);
+    source.connect(scriptNode);
+    scriptNode.connect(this.audioContext.destination);
 }
-Core.Rtc.prototype.onAudioStreamGot = function(audioStream, data) {
-    console.log('onAudioStreamGot() audioStream:', audioStream, ', data:', data);
+
+Core.Rtc.prototype.onAudioProcess = function(e) {
+    let inputData = e.inputBuffer.getChannelData(0);
+    let outputData = e.outputBuffer.getChannelData(0);
+    this.io.emit('audioBufferData', inputData);
+    let audioBufferData = this.audioBufferData;
+    for(let i = 0, length = e.outputBuffer.length; i < length; ++i) {
+        outputData[i] = audioBufferData[i];
+        audioBufferData[i] = 0;
+    }
+}
+
+Core.Rtc.prototype.onAudioBufferDataGot = function(audioBufferData) {
+    for(let i = 0, length = this.audioBufferData.length; i < length; ++i) {
+        this.audioBufferData[i] += audioBufferData[i];
+    }
 }
 
 module.exports = Core.Rtc;
