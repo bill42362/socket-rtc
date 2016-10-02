@@ -90,8 +90,14 @@ Core.Rtc.prototype.sendAudioStream = function(audioStream) {
 Core.Rtc.prototype.onAudioProcess = function(e) {
     let inputData = e.inputBuffer.getChannelData(0);
     let outputData = e.outputBuffer.getChannelData(0);
-    this.io.emit('audioBufferData', {timestamp: Date.now(), buffer: inputData});
-    drawBuffer(inputData, sending2dContext);
+    let audioAbsSum = 0;
+    for(let i = 0, length = inputData.length; i < length; ++i) {
+        audioAbsSum += Math.abs(inputData[i]);
+    }
+    if(50 < audioAbsSum) {
+        this.io.emit('audioBufferData', {timestamp: Date.now(), buffer: inputData});
+        drawBuffer(inputData, sending2dContext);
+    }
 
     let audioBufferData = this.audioBufferData;
     outputData.set(audioBufferData);
