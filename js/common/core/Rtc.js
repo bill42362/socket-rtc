@@ -15,7 +15,7 @@ Core.Rtc = function() {
 }
 
 Core.Rtc.BUFFER_LENGTH = 1024;
-Core.Rtc.prototype.audioBufferData = new Array(Core.Rtc.BUFFER_LENGTH);
+Core.Rtc.prototype.audioBufferData = new Float32Array(Core.Rtc.BUFFER_LENGTH);
 Core.Rtc.prototype.audioContext = new AudioContext();
 Core.Rtc.prototype.audioBufferDataVisualize = document.getElementById('audio-buffer-data');
 Core.Rtc.prototype.isIoConnected = function() { return this.io && this.io.connected; };
@@ -90,18 +90,20 @@ Core.Rtc.prototype.sendAudioStream = function(audioStream) {
 Core.Rtc.prototype.onAudioProcess = function(e) {
     let inputData = e.inputBuffer.getChannelData(0);
     let outputData = e.outputBuffer.getChannelData(0);
-    this.io.emit('audioBufferData', inputData);
+    this.io.emit('audioBufferData', {timestamp: Date.now(), buffer: inputData});
+    drawBuffer(inputData, sending2dContext);
+
     let audioBufferData = this.audioBufferData;
-    for(let i = 0, length = e.outputBuffer.length; i < length; ++i) {
-        outputData[i] = audioBufferData[i];
-        audioBufferData[i] = 0;
-    }
+    outputData.set(audioBufferData);
+    drawBuffer(outputData, output2dContext);
+    audioBufferData.fill(0);
 }
 
 Core.Rtc.prototype.onAudioBufferDataGot = function(audioBufferData) {
-    for(let i = 0, length = this.audioBufferData.length; i < length; ++i) {
-        this.audioBufferData[i] += audioBufferData[i];
-    }
+    let buffer = audioBufferData.buffer;
+    buffer.length = this.audioBufferData.length;
+    drawBuffer(buffer, receving2dContext);
+    this.audioBufferData.set(buffer);
 }
 
 module.exports = Core.Rtc;
