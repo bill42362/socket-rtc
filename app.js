@@ -48,6 +48,7 @@ App.prototype.runSocketServer = function() {
 };
 App.prototype.onSocketConnection = function(socket) {
     this.socketServerDebug('Connection.', 'socket.id:', socket.id);
+    socket.audioData = {lastTimestamp: 0, buffer: undefined};
     socket.on('audioBufferData', this.onAudioBufferDataGot.bind({self: this, socket: socket}));
     socket.on('disconnect', this.onSocketDisonnect.bind({self: this, socket: socket}));
 }
@@ -57,7 +58,11 @@ App.prototype.onSocketDisonnect = function(socket) {
 App.prototype.onAudioBufferDataGot = function(audioBufferData) {
     const self = this.self;
     const socket = this.socket;
-    socket.broadcast.emit('audioBufferData', audioBufferData);
+    if(audioBufferData.timestamp > socket.audioData.lastTimestamp) {
+        socket.audioData.lastTimestamp = audioBufferData.timestamp;
+        socket.audioData.buffer = audioBufferData.buffer;
+        socket.broadcast.emit('audioBufferData', audioBufferData);
+    }
 }
 module.exports = App;
 

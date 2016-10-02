@@ -28,5 +28,50 @@
 </head>
 <body>
     <div id="app-root"></div>
+    <div id="buffers" style="position: relative; height: 600px;">
+        <div id="sending-buffer" style="position: absolute; top: 0px; width: 100%; height: 200px; overflow: hidden;">
+            <h3>Sending</h3>
+            <canvas id="sending-buffer-canvas" style="height: 170px; width: 100%;"></canvas>
+        </div>
+        <div id="receving-buffer" style="position: absolute; top: 200px; width: 100%; height: 200px; overflow: hidden;">
+            <h3>Receving</h3>
+            <canvas id="receving-buffer-canvas" style="height: 170px; width: 100%;"></canvas>
+        </div>
+        <div id="output-buffer" style="position: absolute; top: 400px; width: 100%; height: 200px; overflow: hidden;">
+            <h3>Output</h3>
+            <canvas id="output-buffer-canvas" style="height: 170px; width: 100%;"></canvas>
+        </div>
+    </div>
+    <script type='text/javascript'>
+        var sendingBufferCanvas = document.getElementById('sending-buffer-canvas');
+        window.sending2dContext = sendingBufferCanvas.getContext("2d");
+        sending2dContext.canvas.width = sendingBufferCanvas.clientWidth;
+        sending2dContext.canvas.height = sendingBufferCanvas.clientHeight;
+
+        var recevingBufferCanvas = document.getElementById('receving-buffer-canvas');
+        window.receving2dContext = recevingBufferCanvas.getContext("2d");
+        receving2dContext.canvas.width = recevingBufferCanvas.clientWidth;
+        receving2dContext.canvas.height = recevingBufferCanvas.clientHeight;
+
+        var outputBufferCanvas = document.getElementById('output-buffer-canvas');
+        window.output2dContext = outputBufferCanvas.getContext("2d");
+        output2dContext.canvas.width = outputBufferCanvas.clientWidth;
+        output2dContext.canvas.height = outputBufferCanvas.clientHeight;
+
+        window.drawBuffer = function(buffer, context) {
+            var width = context.canvas.width;
+            var height = context.canvas.height;
+            var middle = 0.5*height;
+            var widthStep = width/buffer.length;
+            context.clearRect(0, 0, width, height);
+            context.beginPath();
+            for(var i = 0, length = buffer.length; i < length; ++i) {
+                context.moveTo(i*widthStep, middle);
+                context.lineTo(i*widthStep, middle + buffer[i]*middle);
+            }
+            context.closePath();
+            context.stroke();
+        }
+    </script>
 </body>
 </html>
